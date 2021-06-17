@@ -148,17 +148,18 @@ if (__DEV__) {
   didWarnAboutReassigningProps = false;
 }
 
-export function reconcileChildren(
+export function reconcileChildren(  // beginWork 组件类型方法中会调用此方法
   current: Fiber | null,
   workInProgress: Fiber,
   nextChildren: any,
   renderExpirationTime: ExpirationTime,
 ) {
   if (current === null) {
-    // If this is a fresh new component that hasn't been rendered yet, we
-    // won't update its child set by applying minimal side-effects. Instead,
-    // we will add them all to the child before it gets rendered. That means
-    // we can optimize this reconciliation pass by not tracking side-effects.
+    /* 如果是全新组件在未渲染之前（mount阶段），我们不会应用最小的 side-effects（无副作用的函数） 在它的子组件上。
+    但是我们在它渲染之前我们会全加载到子组件上。这意味着我们可以通过追踪side-effects 优化这次reconciliation（render阶段？） */
+
+    // mountChildFibers与reconcileChildFibers这两个方法的逻辑基本一致。
+    // 唯一的区别是：reconcileChildFibers会为生成的Fiber节点带上 effectTag 属性，而mountChildFibers不会。
     workInProgress.child = mountChildFibers(
       workInProgress,
       null,
@@ -1890,22 +1891,32 @@ function bailoutOnAlreadyFinishedWork(
   }
 }
 
+//  TODO：beginwork。
+// render 阶段 performUnitOfWork 会调用此方法，进行“递”操作，为遍历到的每个 fiber 节点调用此方法。
+
 function beginWork(
-  current: Fiber | null,
+  current: Fiber | null,  //当前组件对应的Fiber节点在上一次更新时的Fiber节点， workInProgress.alternate
   workInProgress: Fiber,
   renderExpirationTime: ExpirationTime,
 ): Fiber | null {
   const updateExpirationTime = workInProgress.expirationTime;
+  // console.log('beginWork - current: ', current, /* ' workInProgress: ', workInProgress */)
+    // mount 初次不存在上一次更新的fiber 节点，current 为空。
+    // update 的话，满足一定条件时（理解在 diff 算法之后）可以复用 current 节点。
 
   if (current !== null) {
     const oldProps = current.memoizedProps;
     const newProps = workInProgress.pendingProps;
 
+    // 为防止某个update因为优先级的原因一直被打断而未能执行。React会设置一个ExpirationTime，
+    // 当时间到了ExpirationTime的时候，如果某个update还未执行的话，React将会强制执行该update。 React 17 换了方式。
     if (oldProps !== newProps || hasLegacyContextChanged()) {
       // If props or context changed, mark the fiber as having performed work.
       // This may be unset if the props are determined to be equal later (memo).
       didReceiveUpdate = true;
     } else if (updateExpirationTime < renderExpirationTime) {
+      // 如果优先级不够的话就调用bailoutOnAlreadyFinishedWork 复用fiber节点来跳出对当前这个节点的处理了。
+
       didReceiveUpdate = false;
       // This fiber does not have any pending work. Bailout without entering
       // the begin phase. There's still some bookkeeping we that needs to be done

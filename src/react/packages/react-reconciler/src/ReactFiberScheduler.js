@@ -962,6 +962,7 @@ function completeUnitOfWork(workInProgress: Fiber): Fiber | null {
   // Attempt to complete the current unit of work, then move to the
   // next sibling. If there are no more siblings, return to the
   // parent fiber.
+  // console.log('completeUnitOfWork - workInProgress: ', workInProgress)
   while (true) {
     // The current, flushed, state of this fiber is the alternate.
     // Ideally nothing should rely on this, but relying on it here
@@ -1018,7 +1019,7 @@ function completeUnitOfWork(workInProgress: Fiber): Fiber | null {
         return nextUnitOfWork;
       }
 
-      if (
+      if ( // 存在父节点，且其 effectTag为0 还未初始化。 (returnFiber.effectTag & Incomplete) 为0，NoEffect也为0）。
         returnFiber !== null &&
         // Do not append effects to parents if a sibling failed to complete
         (returnFiber.effectTag & Incomplete) === NoEffect
@@ -1026,6 +1027,10 @@ function completeUnitOfWork(workInProgress: Fiber): Fiber | null {
         // Append all the effects of the subtree and this fiber onto the effect
         // list of the parent. The completion order of the children affects the
         // side-effect order.
+
+        // 将子树和该节点的所有 effect 添加到父级的 effect列表中。子树的完成顺序影响side-effect秩序。
+        // 更新 effectList
+        // 解析 http://www.52codes.net/article/75453.html
         if (returnFiber.firstEffect === null) {
           returnFiber.firstEffect = workInProgress.firstEffect;
         }
@@ -1150,7 +1155,7 @@ function performUnitOfWork(workInProgress: Fiber): Fiber | null {
   // means that we don't need an additional field on the work in
   // progress.
   const current = workInProgress.alternate;
-
+  console.log('performUnitOfWork - workInProgress: ', workInProgress)
   // See if beginning this work spawns more work.
   startWorkTimer(workInProgress);
   if (__DEV__) {
